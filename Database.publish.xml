@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <IncludeCompositeObjects>True</IncludeCompositeObjects>
+    <ExcludeDatabaseRoles>True</ExcludeDatabaseRoles>
+    <ExcludeLogins>True</ExcludeLogins>
+    <IgnorePermissions>True</IgnorePermissions>
+    <IgnoreRoleMembership>True</IgnoreRoleMembership>
+    <ExcludeServerRoleMembership>True</ExcludeServerRoleMembership>
+    <IgnoreAuthorizer>True</IgnoreAuthorizer>
+    <IgnoreDefaultSchema>False</IgnoreDefaultSchema>
+    <IgnoreUserSettingsObjects>True</IgnoreUserSettingsObjects>
+    <ExcludeApplicationRoles>True</ExcludeApplicationRoles>
+    <IgnorePermissions>True</IgnorePermissions>
+    <ExcludeSecurityPolicies>True</ExcludeSecurityPolicies>
+    <ExcludeUsers>True</ExcludeUsers>
+    <ExcludeServerRoles>True</ExcludeServerRoles>
+  </PropertyGroup>
+</Project>
