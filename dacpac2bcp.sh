@@ -1,5 +1,5 @@
 #!/bin/bash
-USAGE='Usage: dacpac2bcp.sh -d DATABASE -S SERVER -U USERNAME -P PASSWORD  ( -d is required. The others have defaults.)'
+USAGE='Usage: dacpac2bcp.sh -d DATABASE -S SERVER [-T or -U USERNAME -P PASSWORD] ( -d is required. The others have defaults.)'
 DIR='Must be called from within root of unzipped dacpac folder. (Run "unzip blah.dacpac" then "cd blah")'
 
 # These defaults are for convenience in an isolated development environment.
@@ -18,6 +18,10 @@ while [ $# -gt 0 ]; do
 			DATABASE="$2"
 			shift
 			;;
+		-T) #Trusted connection (Integrated/Windows auth) Overrides -U and -P
+			AUTH="-T"
+			#no arg, no shift
+			;;
 		-U)
 			USERNAME="$2"
 			shift
@@ -35,6 +39,10 @@ while [ $# -gt 0 ]; do
 	esac
 	shift $(( $# > 0 ? 1 : 0 ))
 done
+
+if [ -z "$AUTH" ]; then
+	AUTH="-U \"$USERNAME\" -P \"$PASSWORD\""
+fi
 
 if [ -z "$DATABASE" ]; then
 	echo ERROR: Must specify database name.
@@ -61,7 +69,7 @@ for d in */ ; do
 	echo "Loading table ${d%/}";
 	for f in *.BCP; do
 		tablename="${d%/}"; #Get table name from subfolder name.
-		bcp "${tablename}" in "$f" -S "$SERVER" -d "$DATABASE" -U "$USERNAME" -P "$PASSWORD" -N || break; #If one file failed they all will; on to next table.
+		bcp "${tablename}" in "$f" -S "$SERVER" -d "$DATABASE" $AUTH -N || break; #If one file failed they all will; on to next table.
 	done;
 	cd ..;
 done
