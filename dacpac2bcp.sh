@@ -1,6 +1,5 @@
 #!/bin/bash
-USAGE='Usage: dacpac2bcp.sh -d DATABASE -S SERVER [-T or -U USERNAME -P PASSWORD] ( -d is required. The others have defaults.)'
-DIR='Must be called from within root of unzipped dacpac folder. (Run "unzip blah.dacpac" then "cd blah")'
+USAGE='Usage: dacpac2bcp.sh -f <path to .dacpac file> -d DATABASE -S SERVER [-T or -U USERNAME -P PASSWORD] ( -d and -f are required. The others have defaults.)'
 
 # These defaults are for convenience in an isolated development environment.
 # Don't change them here for production; pass them in.
@@ -18,6 +17,10 @@ while [ $# -gt 0 ]; do
 			DATABASE="$2"
 			shift
 			;;
+		-f)
+			DACPACFILE="$2"
+			shift
+			;;
 		-T) #Trusted connection (Integrated/Windows auth) Overrides -U and -P
 			AUTH="-T"
 			#no arg, no shift
@@ -33,7 +36,6 @@ while [ $# -gt 0 ]; do
 		--*)
 			echo "Illegal option $1"
 			echo "$USAGE"
-			echo "$DIR"
 			exit 1
 			;;
 	esac
@@ -47,19 +49,29 @@ fi
 if [ -z "$DATABASE" ]; then
 	echo ERROR: Must specify database name.
 	echo "$USAGE"
-	echo "$DIR"
 	exit 1
 fi
 
-r=`pwd`
-if [ "${r%/}" != "Data" ]; then
-	if [ -d "./Data" ]; then
-		cd ./Data
-	else
-		echo "ERROR: $DIR"
-		exit 1
-	fi
+if [ -z "$DACPACFILE" ]; then
+	echo ERROR: Must specify DACPAC file path.
+	echo "$USAGE"
+	exit 1
 fi
+
+dacpacDir="${DACPACFILE%.dacpac}"
+
+if [ ! -d "$dacpacDir" ]; then
+    echo "Need to unzip $DACPACFILE to create $dacpacDir"
+    unzip -d "$dacpacDir" "$DACPACFILE"
+fi
+
+if [ ! -d "$dacpacDir/Data" ]; then
+    echo "ERROR: Data subfolder not found within $dacpacDir"
+    echo "Are you sure that the $DACPACFILE file you provided contains table data, and not just schema?"
+    exit 1
+fi
+
+cd "$dacpacDir/Data"
 
 echo Deploying to "$DATABASE" on "$SERVER"
 #set -x #Command echo on, for debugging
