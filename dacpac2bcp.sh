@@ -33,6 +33,10 @@ while [ $# -gt 0 ]; do
 			PASSWORD="$2"
 			shift
 			;;
+		--tables)
+			TABLES="$2"
+			shift
+			;;
 		--*)
 			echo "Illegal option $1"
 			echo "$USAGE"
@@ -72,22 +76,34 @@ if [ ! -d "$dacpacDir/Data" ]; then
 fi
 
 cd "$dacpacDir/Data"
-
 echo Deploying to "$DATABASE" on "$SERVER"
 #set -x #Command echo on, for debugging
 
-for d in */ ; do
+load_table() {
+	d="$1"
 	cd "$d";
 	echo "Loading table ${d%/}";
 	for f in *.BCP; do
-		tablename="${d%/}"; #Get table name from subfolder name.
+		tablename="${d%/}"; # Get table name from subfolder name. This needs to be done inside the loop.
+		# If it's not already, SQL [quote] the tablename:
+		[[ "${tablename}" =~ "\[" ]] || tablename="[${tablename/\./\]\.\[}]"
 		bcp "${tablename}" in "$f" -S "$SERVER" -d "$DATABASE" $AUTH -N || break; #If one file failed they all will; on to next table.
 	done;
+	echo "Done loading table ${d%/}";
 	cd ..;
-done
+}
+
+# Load all tables by default:
+if [ -z "$TABLES" ]; then
+	for d in */ ; do
+		load_table "$d"
+	done
+else # If a list of tables has been provided, do only those:
+	for d in $TABLES ; do
+		load_table "$d"
+	done
+fi
 
 #set +x #Command echo back off
-
 cd .. #Back out of Data dir to root
-
 echo "Done. (Seeing some errors was expected if the DACPAC contains data for tables that are not in your database.)"
