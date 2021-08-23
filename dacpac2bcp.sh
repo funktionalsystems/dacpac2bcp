@@ -47,7 +47,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$AUTH" ]; then
-	AUTH="-U $USERNAME -P $PASSWORD"
+	AUTH="-U \"$USERNAME\" -P \"$PASSWORD\""
 fi
 
 if [ -z "$DATABASE" ]; then
