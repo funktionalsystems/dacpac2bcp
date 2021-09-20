@@ -87,7 +87,7 @@ load_table() {
 		tablename="${d%/}"; # Get table name from subfolder name. This needs to be done inside the loop.
 		# If it's not already, SQL [quote] the tablename:
 		[[ "${tablename}" =~ "\[" ]] || tablename="[${tablename/\./\]\.\[}]"
-		bcp "${tablename}" in "$f" -S "$SERVER" -d "$DATABASE" $AUTH -N || break; #If one file failed they all will; on to next table.
+		bcp "${tablename}" in "$f" -S $SERVER -d $DATABASE $AUTH -N || break; #If one file failed they all will; on to next table.
 	done;
 	echo "Done loading table ${d%/}";
 	cd ..;
