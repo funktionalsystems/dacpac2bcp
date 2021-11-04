@@ -20,13 +20,14 @@ param(
 #$bcp = 'C:\Program Files\Microsoft SQL Server\110\Tools\Binn\bcp.exe'
 
 $dacpacFile = Get-Item $Filename
-$dacpacDir = $dacpacFile.BaseName
 if ($dacpacFile.Extension -ne ".dacpac")
 {
 	echo "Filename must be a .dacpac"
-	exit;
+	exit 1;
 }
 
+$dacpacDirName = $dacpacFile.BaseName
+$dacpacDir = Join-Path $dacpacFile.Directory $dacpacDirName
 if (!(Test-Path $dacpacDir))
 {
     echo "Need to unzip $Filename to create $dacpacDir"
@@ -39,28 +40,31 @@ $dataDir = Join-Path $dacpacDir "Data";
 if ( (!(Test-Path $dataDir)) -or ((Get-ChildItem $dataDir | Measure-Object).Count -eq 0) ) {
     echo "ERROR: Data subfolder not found within $dacpacDir"
     echo "Are you sure that the $File file you provided contains table data, and not just schema?"
-    exit;
+    exit 1;
 }
 
 echo "Deploying $dataDir to $Database on $Server"
 $tables = Get-ChildItem -Directory -Path "$dataDir"
-
-foreach ($t in $tables) {
-	$table = $(Get-Item $t).BaseName
+foreach ($tablePath in $tables) {
+	$table = $(Get-Item $tablePath).BaseName
 	# If it's not already, SQL [quote] the tablename:
 	$table = $table -replace "^([^\.]*)\.([^\.]*)$","[`$1].[`$2]"
 	echo "Loading table $table";
-	foreach ($f in $(Get-ChildItem -Path "$t")){ #-File -Include "*.bcp"
+	foreach ($filePath in $(Get-ChildItem -Path "$tablePath")) {
 		if ($useWindowsAuth) {
-			$bcp_args = "$table", "in", "$f", "-S", "$Server", "-d", "$Database", "-T", "-N"
+			$bcp_args = "$table", "in", "$filePath", "-S", "$Server", "-d", "$Database", "-T", "-N", "-E", "-e", "$filePath.err"
 		} else {
-			$bcp_args = "$table", "in", "$f", "-S", "$Server", "-d", "$Database", "-U", $Username, "-P", $Password, "-N"
+			$bcp_args = "$table", "in", "$filePath", "-S", "$Server", "-d", "$Database", "-U", $Username, "-P", $Password, "-N", "-E", "-e", "$filePath.err"
 		}
-		& bcp @bcp_args
+		$result = & bcp @bcp_args
 		#echo "[DEBUG] bcp $bcp_args"
+		echo "$result"
 		# || break; #If one file failed they all will; on to next table.
 	}
 	echo "Done loading table $table";
 }
 
-echo "Done. (Seeing some errors was expected if the DACPAC contains data for tables that are not in your database.)"
+#Remove empty (err) files:
+Get-ChildItem -File -Recurse -Path "$dataDir" | Where-Object {$_.length -eq 0} | remove-item
+
+echo "Done. (Seeing some errors was expected if the DACPAC contains data for tables that are not in your database. If you see login errors, check the server logs - It might be the specified database is missing or incorrect.)"
