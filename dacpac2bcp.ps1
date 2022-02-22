@@ -4,16 +4,16 @@ Load a data DACPAC file into a database, using BCP
 #>
 
 param(
-    [Parameter(Mandatory=$true, HelpMessage="path to .dacpac file")][string]$Filename,
-    [Parameter(Mandatory=$true, HelpMessage="database name")][string]$Database,
+	[Parameter(Mandatory=$true, HelpMessage="path to .dacpac file")][string]$Filename,
+	[Parameter(Mandatory=$true, HelpMessage="database name")][string]$Database,
 	[Parameter(Mandatory=$false, HelpMessage="Use Trusted connection (Windows-only Integrated auth) Overrides Username and Password")][bool]$useWindowsAuth = $false,
 	#TODO: [Parameter(Mandatory=$false, HelpMessage="Load only this list of tables")][string]$tables = "",
-    
+	
 	# These defaults are for convenience in an isolated development environment.
 	# Don't change them here for production; pass them instead.
 	[Parameter(Mandatory=$false, HelpMessage="server name")][string]$Server = "localhost",
-    [Parameter(Mandatory=$false, HelpMessage="database username")][string]$Username = "sa",
-    [Parameter(Mandatory=$false, HelpMessage="database password")][string]$Password = "Your_password123"
+	[Parameter(Mandatory=$false, HelpMessage="database username")][string]$Username = "sa",
+	[Parameter(Mandatory=$false, HelpMessage="database password")][string]$Password = "Your_password123"
 )
 
 #TODO: If bcp is not available on the PATH, try to find it.
@@ -30,36 +30,36 @@ $dacpacDirName = $dacpacFile.BaseName
 $dacpacDir = Join-Path $dacpacFile.Directory $dacpacDirName
 if (!(Test-Path $dacpacDir))
 {
-    echo "Need to unzip $Filename to create $dacpacDir"
+	echo "Need to unzip $Filename to create $dacpacDir"
 	mv $Filename "$dacpacDir.zip"
-    Expand-Archive -Path $Filename -DestinationPath $dacpacDir
+	Expand-Archive -Path "$dacpacDir.zip" -DestinationPath $dacpacDir
 	mv "$dacpacDir.zip" $Filename
 }
 
 $dataDir = Join-Path $dacpacDir "Data";
 if ( (!(Test-Path $dataDir)) -or ((Get-ChildItem $dataDir | Measure-Object).Count -eq 0) ) {
-    echo "ERROR: Data subfolder not found within $dacpacDir"
-    echo "Are you sure that the $File file you provided contains table data, and not just schema?"
-    exit 1;
+	echo "ERROR: Data subfolder not found within $dacpacDir"
+	echo "Are you sure that the $File file you provided contains table data, and not just schema?"
+	exit 1;
 }
 
 echo "Deploying $dataDir to $Database on $Server"
 $tables = Get-ChildItem -Directory -Path "$dataDir"
-foreach ($tablePath in $tables) {
-	$table = $(Get-Item $tablePath).BaseName
+foreach ($table in $tables) {
+	$tablePath = Join-Path $dataDir $table
 	# If it's not already, SQL [quote] the tablename:
 	$table = $table -replace "^([^\.]*)\.([^\.]*)$","[`$1].[`$2]"
 	echo "Loading table $table";
 	foreach ($filePath in $(Get-ChildItem -Path "$tablePath")) {
+		$filePath = Join-Path $tablePath $filePath
 		if ($useWindowsAuth) {
 			$bcp_args = "$table", "in", "$filePath", "-S", "$Server", "-d", "$Database", "-T", "-N", "-E", "-e", "$filePath.err"
 		} else {
 			$bcp_args = "$table", "in", "$filePath", "-S", "$Server", "-d", "$Database", "-U", $Username, "-P", $Password, "-N", "-E", "-e", "$filePath.err"
 		}
-		$result = & bcp @bcp_args
 		#echo "[DEBUG] bcp $bcp_args"
+		$result = & bcp @bcp_args ## || break; #If one file failed they all will; on to next table.
 		echo "$result"
-		# || break; #If one file failed they all will; on to next table.
 	}
 	echo "Done loading table $table";
 }
